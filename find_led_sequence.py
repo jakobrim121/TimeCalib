@@ -13,6 +13,8 @@ def find_leds(file_path, num_mpmts, n_coverage, diffusers_only=True):
     The function returns an appropriate list of mPMT-LED combinations to fire.
     
     NOTE: this code is wildly inefficient and could be written in a much more sensible way
+
+    Note also that the current csv file labels the diffusers as '60 deg', but in reality they were simulated with an opening angle of 120 degrees
     
     
     file_path: type = string -- The path to the csv file
