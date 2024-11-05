@@ -5,7 +5,7 @@ from pandas import *
 import json
 
 
-def find_leds(file_path, num_mpmts, n_coverage):
+def find_leds(file_path, num_mpmts, n_coverage, diffusers_only=True):
     
     """
     This function takes in a path to a csv file that contains the PMTs that are hit by each LED in the WCTE, the number of 
@@ -18,6 +18,7 @@ def find_leds(file_path, num_mpmts, n_coverage):
     file_path: type = string -- The path to the csv file
     num_mpmts: type = int -- the number of mPMT-LED combinations one is wanting to use
     n_coverage: type = int -- the minimum number of LEDs that are required to hit each PMT
+    diffusers_only: type = bool -- allows one to select only LEDs that are diffusers (should increase efficiency)
     
     By Jakob Rimmer
     
@@ -29,6 +30,8 @@ def find_leds(file_path, num_mpmts, n_coverage):
     # converting column data to list
     slot_id_led = data['Slot_id'].tolist()
     led_pos = data['LED_Pos_id'].tolist()
+    led_type = data['led_col_type'].tolist()
+    led_diff_idx = np.where(np.array(led_type)=='60 deg')[0]
     pmt_raw = data['Unique IDs of PMTs that received light'].tolist()
     pmts = []
     for i in range(len(slot_id_led)):
@@ -38,13 +41,6 @@ def find_leds(file_path, num_mpmts, n_coverage):
         
     # Try randomly selecting a given number of mPMTs and LEDs and see if we can find a combination
     no_led = [95,31,35,26,19,57,5,27,32,45,74,77,79,85,91,99,9] #mPMTs that should not be used
-    barrel_mpmts = range(21,85)
-    bec_mpmts = range(0,21)
-    tec_mpmts = range(85,106)
-    
-    barrel_mpmts_sel = []
-    bec_mpmts_sel = []
-    tec_mpmts_sel = []
     
     break_loop = False
     pmts_not_hit = True
@@ -68,17 +64,27 @@ def find_leds(file_path, num_mpmts, n_coverage):
             # Randomly select LEDs corresponding to the mPMT slot numbers
             rand = np.random.randint(low=0,high=3)
             idx = np.where(np.array(slot_id_led) == mpmt)[0][rand]
+            
+            # If we only want to use diffusers, then only consider diffuser indices
+            if diffusers_only == True:
+                try:
+                    idx = np.intersect1d(np.where(np.array(slot_id_led) == mpmt)[0], led_diff_idx)[0]
+                except:
+                    continue
+                    
             led = led_pos[idx]
             for j in range(len(pmts[idx])):
                 pmts_guess.append([mpmt, led, pmts[idx][j]])
             
             mpmt_led_guess.append([mpmt, led])
-            
-            
-        
+       
         
         pmts_guess = np.array(pmts_guess)
         mpmt_led_guess = np.array(mpmt_led_guess)
+        
+        # We want to leave room to add LEDs that hit PMTs which are not hit many times
+        if len(mpmt_led_guess) > 0.8*num_mpmts:
+            continue
         
         # If there are any repeated entries in the mPMT-LED array, then try again
         if max(np.unique(mpmt_led_guess,axis=0,return_counts=True)[1])>1:
@@ -90,14 +96,6 @@ def find_leds(file_path, num_mpmts, n_coverage):
             unique = mpmt_led_guess
             pmts_not_hit = False
             
-            for m in range(len(unique)):
-                if np.isin(unique[m,0],barrel_mpmts):
-                    barrel_mpmts_sel.append(unique[m])
-                elif np.isin(unique[m,0],bec_mpmts):
-                    bec_mpmts_sel.append(unique[m])
-                elif np.isin(unique[m,0],tec_mpmts):
-                    tec_mpmts_sel.append(unique[m])
-          
                 
             break_loop=True
             break
@@ -124,6 +122,11 @@ def find_leds(file_path, num_mpmts, n_coverage):
             for j in range(len(pmts)):
                 if np.isin(np.unique(pmts_guess[:,2], return_counts=True)[0][i], pmts[j]):
                     idx = j
+                    
+                    if diffusers_only == True:
+                        if led_type[idx] != '60 deg':
+                            continue
+                        
                     if np.isin([slot_id_led[idx],led_pos[idx]],mpmt_led_small_hit).all():
                         continue
                     if np.isin([slot_id_led[idx],led_pos[idx]],unique).all():
@@ -143,84 +146,16 @@ def find_leds(file_path, num_mpmts, n_coverage):
         
     mpmt_led_comb = np.array(mpmt_led_comb)
                         
-    
-    
-    # We'll probably want to fire some LEDs together to minimize the time taken for calibration via LEDs,
-    # so try grouping the LEDs in pairs (make sure barrel mPMTs fire together)
-    # ***This idea is a work in progress and is not currently what this function returns***
-    
-    pairs = {}
-    pairs['barrel'] = []
-    pairs['tec'] = []
-    pairs['bec'] = []
-    
-    idx_barrel = []
-    for i in range(len(barrel_mpmts_sel)):
-        for j in range(len(mpmt_led_comb)):
-            if (barrel_mpmts_sel[i] == mpmt_led_comb[j]).all():
-                idx_barrel.append(j) #Get index of mPMT-LED combination in original data
-                j = len(mpmt_led_comb)
-    
-    idx_bec = []
-    for i in range(len(bec_mpmts_sel)):
-        for j in range(len(mpmt_led_comb)):
-            if (bec_mpmts_sel[i] == mpmt_led_comb[j]).all():
-                idx_bec.append(j) #Get index of mPMT-LED combination in original data
-                j = len(mpmt_led_comb)
-                
-    idx_tec = []
-    for i in range(len(tec_mpmts_sel)):
-        for j in range(len(mpmt_led_comb)):
-            if (tec_mpmts_sel[i] == mpmt_led_comb[j]).all():
-                idx_tec.append(j) #Get index of mPMT-LED combination in original data
-                j = len(mpmt_led_comb)
-
-
-    indices_paired_barrel = []
-
-    for index1 in idx_barrel:
-        no_overlap_sub = []
-        for index2 in idx_barrel:
-            if len(np.intersect1d(pmts[index1],pmts[index2])) == 0:
-                if len(np.intersect1d(index1,indices_paired_barrel))==0 and len(np.intersect1d(index2,indices_paired_barrel))==0:
-                    pairs['barrel'].append([mpmt_led_comb[index1], mpmt_led_comb[index2]])
-                    indices_paired_barrel.append(index1)
-                    indices_paired_barrel.append(index2)
-                    
-    unused_idx_barrel = np.setdiff1d(idx_barrel,indices_paired_barrel)
-    
-    
-    
-    #print(unused_idx_barrel,indices_paired_barrel,idx_barrel)
-                        
+                 
     # We now have a list of mPMTs and LEDs to choose from that will help to hit each PMT n_coverage times
     # Let's add some of these mPMT-LED combinations to our current list until each PMT in WCTE is hit by
     # at least n_coverage LEDs
     
-    # First find which mPMTs are in the barrel in this smaller set of mPMTs
-    mpmt_led_small_hit_barrel = []
-    mpmt_led_small_hit_tb = []
-    for small_idx in range(len(mpmt_led_small_hit)):
-        if np.isin(mpmt_led_small_hit[small_idx][0],barrel_mpmts):
-            mpmt_led_small_hit_barrel.append(mpmt_led_small_hit[small_idx])
-        else:
-            mpmt_led_small_hit_tb.append(mpmt_led_small_hit[small_idx])
-    
-    mpmt_led_small_hit_tb = np.array(mpmt_led_small_hit_tb)
-    mpmt_led_small_hit_barrel = np.array(mpmt_led_small_hit_barrel)
-    
-                
-    
     
     #Try cycling through 100 times, each time checking which PMTs only see light from one LED
-    barrel_filled = False
-    barrel_mpmts_left = len(unused_idx_barrel)
+
     for i in range(100):
         extra_leds = []
-        
-        
-        #rand_idx_barrel = np.random.randint(low=0,high=len(mpmt_led_small_hit_barrel),size = barrel_mpmts_left)   
-        #rand_idx_tb = np.random.randint(low=0,high=len(mpmt_led_small_hit_tb),size = num_mpmts-len(unique)-barrel_mpmts_left)
         
         # If the list of "small hit" LEDs is not empty, then select mPMT-LED combinations from this list
         if len(mpmt_led_small_hit) != 0:
@@ -235,19 +170,6 @@ def find_leds(file_path, num_mpmts, n_coverage):
                 extra_leds.append(mpmt_led_comb[j])
         
         repeat = False
-        extra_leds_barrel = []
-        extra_leds_tb = []
-        
-        
-        
-    
-        #for j in rand_idx_barrel:
-         #   extra_leds.append(mpmt_led_small_hit_barrel[j])
-          #  extra_leds_barrel.append(mpmt_led_small_hit_barrel[j])
-            
-       # for j in rand_idx_tb:
-        #    extra_leds.append(mpmt_led_small_hit_tb[j])
-         #   extra_leds_tb.append(mpmt_led_small_hit_tb[j])
         
     
         # If we have repeated entries in mpmt-LED array then try again
