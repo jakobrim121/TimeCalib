@@ -29,8 +29,7 @@ plt.ioff()
 #def get_TC_data(run, file_path, nbins):
 def get_calibration_constants(run, test_data):
     '''
-    This function takes in a rootfile and returns the calibration constants for each PMT and mPMT.
-    This function assumes that each event in the rootfile contains all the information needed to add to the TC data format.
+    The current version of this function takes in a dictionary of PMT hit times that are produced by Dean's process_parquet.py file
     
     '''
     
