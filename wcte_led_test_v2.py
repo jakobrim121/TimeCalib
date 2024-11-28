@@ -353,7 +353,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
     
     plot_path = './'
     
-    #eps = 0.2 # This is the range around 1 cc tick within which two peaks will be identified as a clock issue
+    eps = 0.2 # This is the range around 1 cc tick within which two peaks will be identified as a clock issue
     
     #data_length = 1024 # Number of cc ticks in a waveform
     #cfd_fits = {mpmt_rec : {}} # Create a dictionary for cfd fits to be placed in
