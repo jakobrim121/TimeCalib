@@ -29,7 +29,8 @@ plt.ioff()
 #def get_TC_data(run, file_path, nbins):
 def get_calibration_constants(run, test_data):
     '''
-    The current version of this function takes in a dictionary of PMT hit times that are produced by Dean's process_parquet.py file
+    This function takes in a rootfile and returns the calibration constants for each PMT and mPMT.
+    This function assumes that each event in the rootfile contains all the information needed to add to the TC data format.
     
     '''
     
@@ -78,7 +79,8 @@ def get_calibration_constants(run, test_data):
     mpmt_tran_slot = led_mapping[str(data[0]['card_id'])]['slot_id']
     led_no = data[0]['led_no']
     led_pos = led_mapping[str(data[0]['card_id'])]['led'+str(led_no)+'_pos_id']
-    print(mpmt_tran_slot)
+    print('mPMT slot that is firing: ' + str(mpmt_tran_slot) + ', with LED position: ' + str(led_pos))
+    
     
     for i in range(len(data[0])):
         for mpmt in data[i]['mpmts'].keys():
@@ -246,8 +248,7 @@ def plot_only(run, data, plot_double_peaks, plot_all):
     led_no = data[0]['led_no']
     led_pos = led_mapping[str(data[0]['card_id'])]['led'+str(led_no)+'_pos_id']
     
-    print(mpmt_tran_slot)
-    print(led_pos)
+    print('mPMT slot that is firing: ' + str(mpmt_tran_slot) + ', with LED position: ' + str(led_pos))
     
     for i in range(len(data[0])):
         for mpmt in data[i]['mpmts'].keys():
@@ -350,11 +351,11 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
     
     """
     
-    plot_path = './plots'
+    plot_path = './
     
-    eps = 0.2 # This is the range around 1 cc tick within which two peaks will be identified as a clock issue
+    #eps = 0.2 # This is the range around 1 cc tick within which two peaks will be identified as a clock issue
     
-    data_length = 1024 # Number of cc ticks in a waveform
+    #data_length = 1024 # Number of cc ticks in a waveform
     #cfd_fits = {mpmt_rec : {}} # Create a dictionary for cfd fits to be placed in
     #timing_dist = {mpmt_rec : {}} # Dictionary to hold the raw CFD timing fits
     gauss_fit_t = {mpmt_rec : {}} # Place to store the gaussian fit times and standard deviations
@@ -509,7 +510,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
                 plt.title(title +' : Peaks = ' +str(num_peaks_adc))
                 #plt.xlim((mod_length/nbins)*npeaks[0][0]-offset, (mod_length/nbins)*npeaks[0][-1]+offset)
                 
-                plt.savefig('./plots/'+title + '_peaks' + str(num_peaks_adc))
+                plt.savefig(title + '_peaks' + str(num_peaks_adc))
                 plt.close(fig)
                 #plt.show()
                 
@@ -520,7 +521,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
                 plt.xlabel('Time (8 ns bins)')
                 plt.xlim(0,mod_length)
                 plt.title(title)
-                plt.savefig('./plots/'+title + '_peaks' + str(num_peaks_adc))
+                plt.savefig(title + '_peaks' + str(num_peaks_adc))
                 plt.close(fig)
                 #plt.show()
                 
@@ -625,7 +626,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
             
                 
         plt.tight_layout()
-        fig.savefig('./plots/'+title_all+'_full_figure.png')
+        fig.savefig(title_all+'_full_figure.png')
         plt.close(fig)
         
             
