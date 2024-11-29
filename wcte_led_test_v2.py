@@ -39,9 +39,14 @@ def get_calibration_constants(run, test_data):
     bad_list = np.array([
      [10,16],[10,17],[10,18],[21,0],[21,1],[21,2],[21,3],[21,4],[21,5],[21,6],[21,7],[26,0],[26,1],[26,2],[26,3],
     [42,4],[42,5],[42,6],[42,7],[45,0],[45,1],[45,2],[45,3],[47,4],[47,5],[47,6],[47,7],[52,4],[52,5],[52,6],[52,7],
-    [78,4],[78,5],[78,6],[78,7],[83,4],[83,5],[83,6],[83,7],[85,4],[85,5],[85,6],[85,7],[93,4],[93,5],[93,6],[93,7],
+    [78,4],[78,5],[78,6],[78,7],[83,4],[83,5],[83,6],[83,7],[85,4],[85,5],[85,6],[85,7],[93,4],[93,5],[93,7],
     [95,0],[95,1],[95,2],[95,3],[97,4],[97,5],[97,6],[97,7]
     ])
+    
+    
+    bad_list_pos = [[1,1],[1,2],[1,7],[1,8],[93,0],[93,6],[93,17],[93,18]]
+    
+    amp_threshold = 20
     
     # Set up TC data structure in which to place the LED and PMT information
     wcte = WCD('wcte', kind='WCTE')
@@ -74,7 +79,15 @@ def get_calibration_constants(run, test_data):
     with open('PMT_Mapping.json', 'r') as file2:
         pmt_mapping = json.load(file2)
         
+    # The above list of bad mPMTs and PMTs are the card IDs and channel IDs...convert those to positions    
+    #bad_list_pos = []
         
+    for i in range(len(bad_list)):
+        mpmt_slot = led_mapping[str(bad_list[i][0])]['slot_id']
+        pmt_position = pmt_mapping['mapping'][str(bad_list[i][0]*100+ bad_list[i][1])] - led_mapping[str(bad_list[i][0])]['slot_id']*100
+        bad_list_pos.append([mpmt_slot,pmt_position])
+        #print('card_id' + str(str(bad_list[i][0])) + ', slot' + str(mpmt_slot) + ', chan' + str(str(bad_list[i][1])) + ', position' + str(pmt_position))
+    
         
     mpmt_tran_slot = led_mapping[str(data[0]['card_id'])]['slot_id']
     led_no = data[0]['led_no']
@@ -95,7 +108,11 @@ def get_calibration_constants(run, test_data):
             for j in range(len(data[i]['mpmts'][mpmt])):
                 
                 try:
+                    
                     pmt_id = pmt_mapping['mapping'][str(mpmt*100+data[i]['mpmts'][mpmt][j]['chan'])] - led_mapping[str(mpmt)]['slot_id']*100
+                    #print('Channel ', data[i]['mpmts'][mpmt][j]['chan'])
+                    #print('Position ', pmt_id)
+                    #print('')
                 except:
                     continue
               
@@ -121,8 +138,9 @@ def get_calibration_constants(run, test_data):
                 pmt_times = data[i]['mpmts'][mpmt][j]['t'] + data[i]['mpmts'][mpmt][j]['coarse'] - t_led
                 pmt_coarse = data[i]['mpmts'][mpmt][j]['coarse']
                 wf_times = data[i]['mpmts'][mpmt][j]['t']
+                amp = data[i]['mpmts'][mpmt][j]['amp']
             
-                if wf_times >0:
+                if wf_times >0 and amp > amp_threshold:
             
                     data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['pmt_times'].append(pmt_times)
                     data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['t_led'].append(t_led)
@@ -159,11 +177,13 @@ def get_calibration_constants(run, test_data):
                 mpmt_pmt_pair = np.array([[mpmt_rec_slot,pmt_pos]])
                 
                 # Exclude PMTs in bad PMT list
-                if max(np.unique(np.concatenate((bad_list,mpmt_pmt_pair)),axis=0,return_counts=True)[1])>1:
+                if max(np.unique(np.concatenate((bad_list_pos,mpmt_pmt_pair)),axis=0,return_counts=True)[1])>1:
+                    #print('bad detected')
                     continue
                 
                 
                 #pmt_coarse = data_by_slot[mpmt_receiving][pmt_id][pmt_coarse]
+                fit_amp = gauss_fit[mpmt_receiving][mpmt_transmitting][led_position][pmt_id]['amp']
                 t = gauss_fit[mpmt_receiving][mpmt_transmitting][led_position][pmt_id]['mu']
                 t_sig = gauss_fit[mpmt_receiving][mpmt_transmitting][led_position][pmt_id]['sig']
         
@@ -177,16 +197,17 @@ def get_calibration_constants(run, test_data):
                 
                 fine_bin_width = 0.05
                 
-                n_gauss = np.sqrt(2*np.pi)*t_sig*t/fine_bin_width
+                n_gauss = np.sqrt(2*np.pi)*t_sig*fit_amp/fine_bin_width
                 
                 
                 sig_per_flash = n_gauss/n_flashes
+                #print(sig_per_flash)
                 
                 if sig_per_flash <0.04 or sig_per_flash > 0.8:
                     continue
                 
                 # Don't include fits in the calibration with sigmas>0.14
-                if t_sig>0.14 or t_sig <0.04:
+                if t_sig>0.13 or t_sig <0.04:
                     continue
         
                 tc_led_data.set(mpmt_tran_slot, led_pos, mpmt_rec_slot, pmt_pos, dt, t_sig)
@@ -555,19 +576,24 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
         
         # If there's no ADC issue, get timing information
         if num_peaks_adc == 1:
+            gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['amp'] = fit_params[0]
             gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['mu'] = fit_params[1]
             gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['sig'] = fit_params[2]
         
     ### END PMT LOOP ###
         
     # If needed, plot all timing distributions for the brb with the gaussian fits
-    title_all = mpmt_rec + '_' + mpmt_tran + '_' + led_pos
+    title_all = 'Receiving mPMT slot: ' + mpmt_rec[8:] + ' - Transmitting mPMT slot: ' + mpmt_tran[9:] + ' - LED position: '+led_pos[7:]
+    
+    #title_all = mpmt_rec + '_' + mpmt_tran + '_' + led_pos
     if plot_all == True:
         
         #xfit = np.linspace(0,mod_length,10000)
         #x_fit_ratio = len(xfit)/mod_length # How many x points within one cc tick used for plotting the gaussian fit
         
         fig, axes = plt.subplots(5,4,figsize = (23,17))
+        fig.subplots_adjust(top=0.8)
+        plt.suptitle(title_all)
         #plt.suptitle('mPMT Card ID' + str(mpmt))
         
         for pmt_id in pmt_data:
@@ -615,18 +641,18 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
             ax.hist(pmt_data[pmt_id]['pmt_times'],bins=fine_bins)
             ax.plot(fit_time_bins,Gauss(fit_time_bins,amp,mu,sig))
             
-            
-            ax.text(0.6,0.9,'Mean = ' + str(round(mu,3)),transform=ax.transAxes)
-            ax.text(0.6,0.8,'STD = ' + str(round(sig,3)),transform=ax.transAxes)
+            ax.text(0.6,0.9,'PMT position '+pmt_id[6:],transform=ax.transAxes)
+            ax.text(0.6,0.8,'Mean = ' + str(round(mu,3)),transform=ax.transAxes)
+            ax.text(0.6,0.7,'STD = ' + str(round(sig,3)),transform=ax.transAxes)
             ax.set_xlabel('Time (8 ns)')
-            ax.set_title(title)
+            #ax.set_title(title)
             #ax.text()
            
                 
             
                 
         plt.tight_layout()
-        fig.savefig(title_all+'_full_figure.png')
+        fig.savefig('./plots/'+title_all+'_full_figure.png')
         plt.close(fig)
         
             
