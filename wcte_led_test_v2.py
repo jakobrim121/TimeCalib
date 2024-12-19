@@ -27,7 +27,7 @@ plt.ioff()
 
 
 #def get_TC_data(run, file_path, nbins):
-def get_calibration_constants(run, test_data):
+def get_calibration_constants(run, test_data, skip_pmts = []):
     '''
     This function takes in a rootfile and returns the calibration constants for each PMT and mPMT.
     This function assumes that each event in the rootfile contains all the information needed to add to the TC data format.
@@ -39,12 +39,12 @@ def get_calibration_constants(run, test_data):
     bad_list = np.array([
      [10,16],[10,17],[10,18],[21,0],[21,1],[21,2],[21,3],[21,4],[21,5],[21,6],[21,7],[26,0],[26,1],[26,2],[26,3],
     [42,4],[42,5],[42,6],[42,7],[45,0],[45,1],[45,2],[45,3],[47,4],[47,5],[47,6],[47,7],[52,4],[52,5],[52,6],[52,7],
-    [78,4],[78,5],[78,6],[78,7],[83,4],[83,5],[83,6],[83,7],[85,4],[85,5],[85,6],[85,7],[93,4],[93,5],[93,7],
+    [78,4],[78,5],[78,6],[78,7],[83,4],[83,5],[83,6],[83,7],[85,4],[85,5],[85,6],[85,7],[93,4],[93,5],[93,6],[93,7],
     [95,0],[95,1],[95,2],[95,3],[97,4],[97,5],[97,6],[97,7]
     ])
     
     
-    bad_list_pos = [[1,1],[1,2],[1,7],[1,8],[93,0],[93,6],[93,17],[93,18]]
+    bad_list_pos = [[1,1],[1,2],[1,6],[1,7],[1,8],[1,18],[2,1],[2,2],[2,7],[2,8],[4,16],[5,1],[5,5],[5,6],[5,10],[5,12],[8,18],[11,17],[20,0],[20,6],[20,17],[22,1],[22,2],[22,7],[22,8],[29,0],[29,2],[29,8],[29,11],[31,1],[31,2],[31,7],[31,8],[31,14],[31,15],[31,16],[33,4],[39,12],[40,13],[42,4],[42,5],[42,12],[43,1],[43,2],[43,7],[43,8],[43,17],[53,0],[53,7],[53,8],[60,13],[61,0],[61,1],[61,2],[61,5],[65,14],[65,15],[65,16],[67,7],[78,0],[78,3],[78,4],[78,6],[78,8],[78,12],[81,14],[83,1],[83,7],[86,1],[86,2],[86,7],[86,8],[86,14],[86,15],[86,16],[88,1],[88,2],[88,7],[88,8],[88,10],[90,0],[90,7],[90,6],[90,14],[90,17],[90,18],[93,0],[93,3],[93,4],[93,6],[93,9],[93,16],[93,17],[93,18],[94,1],[94,2],[94,7],[101,0],[101,3],[101,4],[101,5],[101,6],[101,10],[101,13],[101,14],[101,15],[101,16],[101,17],[103,3],[103,11],[104,11]]
     
     amp_threshold = 20
     
@@ -71,8 +71,14 @@ def get_calibration_constants(run, test_data):
     rec_tran = []
     rec_tran_led = []
     
+    # If there are bad PMT positions passed as an argument, then parse them and add them to the existing list
+    if len(skip_pmts)>0:
+        for i in range(len(skip_pmts)):
+            # Add additional bad PMTs to this list
+            if max(np.unique(np.concatenate((bad_list_pos,[skip_pmts[i]])),axis=0,return_counts=True)[1])==1:
+                bad_pos_list.append(skip_pmts[i])
     
-
+    
     with open('led_mapping.json', 'r') as file:
         led_mapping = json.load(file)
     
@@ -207,7 +213,7 @@ def get_calibration_constants(run, test_data):
                     continue
                 
                 # Don't include fits in the calibration with sigmas>0.14
-                if t_sig>0.13 or t_sig <0.04:
+                if round(t_sig,2)>=0.13 or round(t_sig,2) <=0.04:
                     continue
         
                 tc_led_data.set(mpmt_tran_slot, led_pos, mpmt_rec_slot, pmt_pos, dt, t_sig)
@@ -255,7 +261,7 @@ def plot_only(run, data, plot_double_peaks, plot_all):
     rec_tran = []
     rec_tran_led = []
     
-    
+    amp_threshold = 20
 
     with open('led_mapping.json', 'r') as file:
         led_mapping = json.load(file)
@@ -293,7 +299,7 @@ def plot_only(run, data, plot_double_peaks, plot_all):
 
     for i in range(len(data)):
         t_led = data[i]['coarse']
-        mpmt_tran = data[i]['card_id']
+        #mpmt_tran = data[i]['card_id']
        
         for mpmt in data[i]['mpmts'].keys():
             mpmt_rec = led_mapping[str(mpmt)]['slot_id']
@@ -310,8 +316,9 @@ def plot_only(run, data, plot_double_peaks, plot_all):
                 pmt_times = data[i]['mpmts'][mpmt][j]['t'] + data[i]['mpmts'][mpmt][j]['coarse'] - t_led
                 pmt_coarse = data[i]['mpmts'][mpmt][j]['coarse']
                 wf_times = data[i]['mpmts'][mpmt][j]['t']
+                amp = data[i]['mpmts'][mpmt][j]['amp']
             
-                if wf_times >0:
+                if wf_times >0 and amp > amp_threshold:
             
                     data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['pmt_times'].append(pmt_times)
                     data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['t_led'].append(t_led)
@@ -321,8 +328,11 @@ def plot_only(run, data, plot_double_peaks, plot_all):
         
     for mpmt_receiving in data_by_slot:
         
-        mpmt_transmitting = 'mpmt_tran'+str(mpmt_tran)
+        mpmt_transmitting = 'mpmt_tran'+str(mpmt_tran_slot)
         led_position = 'led_pos'+str(led_pos)
+        
+        if np.isin(int(mpmt_tran_slot),np.array([21,23,60])):
+            plot_all = True
                
         findNPeaks(mpmt_receiving,mpmt_transmitting,led_position, data_by_slot[mpmt_receiving], plot_double_peaks, plot_all)[1]
                     
@@ -334,9 +344,11 @@ def plot_only(run, data, plot_double_peaks, plot_all):
 
 def write_json(start_run_num,end_run_num,start_time,end_time,official,data):
     
+    folder = "/eos/user/j/jrimmer/SWAN_projects/wcte_led/results/json_files/"
+    
     '''
     Function to write out data in the correct json format, which will then be uploaded to the calibration database.
-    Note: data variable should be a dictionary of pmt_id's and timing offsets
+    Note: data variable should be a list of dictionaries of pmt_id's and timing offsets
     
     '''
     
@@ -349,14 +361,14 @@ def write_json(start_run_num,end_run_num,start_time,end_time,official,data):
     "calibration_name": "timing_offsets",
     "calibration_method": "LED",
     "official": official,
-    "data": [data]
+    "data": data
     }
     
     # Serializing json
     json_object = json.dumps(dictionary, indent=4)
  
     # Writing to json file
-    with open("SR"+str(start_run_num)+"_ER" + str(end_run_num)+"_ST" + str(start_time)+"_ET"+str(end_time), "w") as outfile:
+    with open(folder + "SR"+str(start_run_num)+"_ER" + str(end_run_num)+"_ST" + str(start_time)+"_ET"+str(end_time), "w") as outfile:
         outfile.write(json_object)
  
     return 0
@@ -423,13 +435,16 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
         if len(cfd_fits) == 0:
             no_hits = True
             dead_chans.append(pmt_id)
-            print('No hits present after CFD for '+ title)
+            #print('No hits present after CFD for '+ title)
             continue
         
             
         arr = cfd_fits
         
         hist, bins = np.histogram(arr, bins=range(500))
+        if np.sum(hist)<40:
+            continue
+            
         max_bin = np.argmax(hist)
         max_bin_centre = max_bin + 0.5
         # limited range of values to fit and plot
@@ -476,7 +491,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
         
         num_peaks_adc = 0
         # Make sure the PMT is seeing enough hits to form a reasonable distribution to fit to
-        if peak_max > 10:
+        if peak_max > 20:
             
             # Two peaks must be with 1 +- eps cc ticks in order to be classified as a clock problem
             for peak_idx in npeaks[0]: 
@@ -507,7 +522,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
             pmtid_peaks[pmt_id] = 0
             
         if len(npeaks[0])<1: 
-            print('No peaks detected for ' + title)
+            #print('No peaks detected for ' + title)
             
             continue
             
@@ -575,10 +590,10 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
         gauss_fit_params[mpmt_rec][mpmt_tran][led_pos][pmt_id]['fit_time_bins'] = fit_params[3]
         
         # If there's no ADC issue, get timing information
-        if num_peaks_adc == 1:
-            gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['amp'] = fit_params[0]
-            gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['mu'] = fit_params[1]
-            gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['sig'] = fit_params[2]
+        #if num_peaks_adc == 1:
+        gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['amp'] = fit_params[0]
+        gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['mu'] = fit_params[1]
+        gauss_fit_t[mpmt_rec][mpmt_tran][led_pos][pmt_id]['sig'] = fit_params[2]
         
     ### END PMT LOOP ###
         
