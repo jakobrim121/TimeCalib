@@ -147,11 +147,13 @@ def get_calibration_constants(run, test_data, skip_pmts = []):
                 amp = data[i]['mpmts'][mpmt][j]['amp']
             
                 if wf_times >0 and amp > amp_threshold:
-            
-                    data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['pmt_times'].append(pmt_times)
-                    data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['t_led'].append(t_led)
-                    data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['pmt_course'].append(pmt_coarse)
-                    data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['wf_times'].append(wf_times)
+                    try:
+                        data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['pmt_times'].append(pmt_times)
+                        data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['t_led'].append(t_led)
+                        data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['pmt_course'].append(pmt_coarse)
+                        data_by_slot['mpmt_rec'+str(mpmt_rec)]['pmt_id' + str(pmt_id)]['wf_times'].append(wf_times)
+                    except:
+                        pass
  
     fit_times = []
     to_be_calib = []
