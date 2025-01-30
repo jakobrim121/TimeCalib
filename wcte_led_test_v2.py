@@ -97,6 +97,9 @@ def get_calibration_constants(run, test_data, skip_pmts = []):
         
     mpmt_tran_slot = led_mapping[str(data[0]['card_id'])]['slot_id']
     led_no = data[0]['led_no']
+    # if LED mask is 4, use LED no. 3, since LED no. 4 does not exist
+    if led_no == 4:
+        led_no = 3
     led_pos = led_mapping[str(data[0]['card_id'])]['led'+str(led_no)+'_pos_id']
     print('mPMT slot that is firing: ' + str(mpmt_tran_slot) + ', with LED position: ' + str(led_pos))
     
