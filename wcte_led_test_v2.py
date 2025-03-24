@@ -483,7 +483,9 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
         #Save the x-limits needed for the plot 
         #plot_scale[mpmt_rec][pmt_id].append([(mod_length/nbins)*npeaks[0][0]-offset,(mod_length/nbins)*npeaks[0][-1]+offset])
         
-        
+        if len(npeaks[1]['peak_heights']) <1:
+            #print(npeaks)
+            continue
         
         # Get peak height of maximum peak, as well as the cc of this peak
         peak_max = max(npeaks[1]['peak_heights'])
