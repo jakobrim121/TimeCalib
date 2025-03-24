@@ -446,12 +446,12 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
             
         arr = cfd_fits
         
-        hist, bins = np.histogram(arr, bins=range(500))
+        hist, bins = np.histogram(arr, bins=range(-300,500))
         if np.sum(hist)<40:
             continue
             
         max_bin = np.argmax(hist)
-        max_bin_centre = max_bin + 0.5
+        max_bin_centre = bins[max_bin] + 0.5
         # limited range of values to fit and plot
         min_val = max_bin_centre - 3.
         
@@ -618,7 +618,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
         
         for pmt_id in pmt_data:
             
-            hist, bins = np.histogram(pmt_data[pmt_id]['pmt_times'], bins=range(500))
+            hist, bins = np.histogram(pmt_data[pmt_id]['pmt_times'], bins=range(-300,500))
             max_bin = np.argmax(hist)
             max_bin_centre = max_bin + 0.5
             # limited range of values to fit and plot
@@ -637,7 +637,7 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
                 amp  = 0
                 mu = 0
                 sig = 1
-                fit_time_bins = np.linspace(0,500,500)
+                fit_time_bins = np.linspace(-300,500,500)
                 
                 #xfit_small = xfit
                 #plot_scale[mpmt_rec][pmt_id].append([0,mod_length])
@@ -681,9 +681,9 @@ def findNPeaks(mpmt_rec, mpmt_tran, led_pos, pmt_data, plot_double_peaks = True,
 def get_fit(t0):
     
     
-    hist, bins = np.histogram(t0, bins=range(500))
+    hist, bins = np.histogram(t0, bins=range(-300,500))
     max_bin = np.argmax(hist)
-    max_bin_centre = max_bin + 0.5
+    max_bin_centre = bins[max_bin] + 0.5
     # limited range of values to fit and plot
     min_val = max_bin_centre - 3.
     max_val = max_bin_centre + 7.
