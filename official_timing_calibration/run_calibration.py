@@ -26,39 +26,44 @@ plt.ioff()
 
 ### CONFIGURE YOUR SETTINGS BEFORE RUNNING ###
 
+
+data_date = "2025-04-26" # The date the data was collected (format should be yyyy-mm-dd)
+
+daq_mode = 'tooldaq' # tooldaq or standalone
+trigger_type = 'self_trigger' # self_trigger or soft_trigger
+run_num = 1793 # Run number
+hit_type = 'cfd' # cfd or fine 
+
+get_precal = True # Whether or not you want to calculate the pre-calibration data
+run_calibration = True # Whether or not you want to actually run the calibration
+
 # Below are the file paths you need to specify
 
-tooldaq = False
-standalone = True
+dict_folder = '/eos/user/j/jrimmer/led_data/dictionaries/'+ data_date + '/'+daq_mode+'/'+trigger_type + '/'+str(run_num)+'/'+hit_type+'/' # Dictionary folder
+#dict_folder = '/eos/user/j/jrimmer/led_data/dictionaries/'+ data_date + '/single_leds/'
 
-dict_folder = '/eos/user/j/jrimmer/led_data/dictionaries/tooldaq/self_trigger/1453/' # Dictionary folder
-dict_folder = '/eos/user/j/jrimmer/led_data/dictionaries/2025-04-04/'
+#dict_folder = '/eos/user/j/jrimmer/led_data/dictionaries/2025-04-09/'
 
 
 bad_path_save_folder = "/eos/user/j/jrimmer/SWAN_projects/official_led_calibration/bad_paths/" # Folder for saving bad paths
 
-precal_save_folder = "/eos/user/j/jrimmer/led_data/precal/2025-04-04/" # Where the pre-calibration data is saved
+precal_save_folder = "/eos/user/j/jrimmer/led_data/precal/" + data_date + '/' + daq_mode+'/'+trigger_type +'/'+str(run_num)+'/'+hit_type+'/' # Where the pre-calibration data is saved
 
 # Where the calibration results are saved
-calib_save_folder = "/eos/user/j/jrimmer/SWAN_projects/official_led_calibration/results/2025-04-04/" 
+calib_save_folder = "/eos/user/j/jrimmer/SWAN_projects/official_led_calibration/results/"+data_date +'/' +daq_mode+'/'+trigger_type + '/' +str(run_num)+'/'+hit_type+'/' 
 
-
-data_date = "2025_04_04" # The date the data was collected (format should be yyyy_mm_dd)
 
 interactive = True # If running as a batch job, this should be false. Otherwise, you will be prompted for responses on command line
 
-use_skip_paths = True # If you want to exlude the existing "bad" paths from previous calibrations
+use_skip_paths = False # If you want to exlude the existing "bad" paths from previous calibrations (if in doubt, set False)
 
-
-get_precal = False # Whether or not you want to calculate the pre-calibration data
-run_calibration = True # Whether or not you want to actually run the calibration
 
 DAC = 750 # LED intensity (hopefully this will be embedded in the LED files eventually)
 
 # Whether or not you want to use all files in dictionary folder. If false, specify the start and end indices below
-use_all_dict_files = False
-start_file_num_dict = 16 # Starting file number in dictionary folder 
-end_file_num_dict = 19 # Ending file number in dictionary folder
+use_all_dict_files = True
+start_file_num_dict = 14 # Starting file number in dictionary folder 
+end_file_num_dict = 15 # Ending file number in dictionary folder
 
 # Whether or not you want to use all files in precal folder. If false, specify the start and end indices below
 use_all_precal_files = True
@@ -67,6 +72,9 @@ end_file_num_precal = 5 # Ending file number in precal folder (only need this if
 
 ref_mpmt_slot = 49 # Reference mPMT being used in calibration
 
+skip_led_slots = [2] # If you're wanting to skip any specific LED slots in the calibration
+
+geometry_type = 'est' # 'est' or 'design'
 
 ### END OF CONFIGURATION ###
 
@@ -87,6 +95,7 @@ tc_data = []
 card_id_all = []
 runs_unfiltered = []
 runs_all = []
+bad_paths_calib = []
 
 if use_skip_paths == True:
 
@@ -136,7 +145,7 @@ if get_precal == True:
             
         print('Loading run: ' + str(run))
         
-        if standalone == True:
+        if daq_mode != 'tooldaq':
             if i == first_good_file:
             
                 start_run_num = run[run.find(data_date[:4]) : run.find(data_date[:4]) + 14]
@@ -203,24 +212,32 @@ if run_calibration == True:
          
        
         # Load in all the pre-saved precal data
-        for i in range(len(runs)):
+        if daq_mode != 'tooldaq':
+            for i in range(len(runs)):
             
-            if i == 0:
-                start_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
-                end_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
+                if i == 0:
+                    start_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
+                    end_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
         
-            if runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14] < start_run_num:
-                start_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
+                if runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14] < start_run_num:
+                    start_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
             
-            if runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14] > end_run_num:
-                end_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
+                if runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14] > end_run_num:
+                    end_run_num = runs[i][runs[i].find(data_date[:4]) : runs[i].find(data_date[:4]) + 14]
             
             
-            tc_data.append(np.load(precal_save_folder+runs[i]))
+                tc_data.append(np.load(precal_save_folder+runs[i]))
+                
+        else:
+            start_run_num = run[-8:-4]
+            end_run_num = run[-8:-4]
     
     # Cycle through the precal data and perform calibration on it
     for i in range(len(tc_data)):
         for j in range(len(tc_data[i])):
+            
+            if np.isin(int(tc_data[i][j][0]),skip_led_slots):
+                continue
             
             if use_skip_paths == True:
                 if max(np.unique(np.concatenate((skip_paths,[[int(tc_data[i][j][0]),int(tc_data[i][j][1]),int(tc_data[i][j][2]),int(tc_data[i][j][3])]])),axis=0,return_counts=True)[1])>1:
@@ -238,7 +255,7 @@ if run_calibration == True:
     wcte_calib.set_reference_mpmt(ref_mpmt_slot,0,0.1) # Set the reference mPMT
     wcte_calib.set_priors(0.,100.,0.,100.,epsilon_apply=False, alpha_apply=True) #Set the priors
 
-    chi2, n_dof, chisqs, devs_led, dists_led, bad_paths_calib =wcte_calib.calibrate(return_chisqs = True,place_info='est') # Do the calibration
+    chi2, n_dof, chisqs, devs_led, dev_by_path, dists_led, bad_paths_calib =wcte_calib.calibrate(return_chisqs = True,place_info=geometry_type) # Do the calibration
     
     if interactive == True:
         print('Save calibration results? Answer yes or no')
@@ -289,6 +306,7 @@ if run_calibration == True:
         devs = []
         dists = []
         for key in devs_led:
+            
             devs.append(devs_led[key])
             dists.append(dists_led[key])
             
@@ -312,6 +330,7 @@ if run_calibration == True:
 
         ax[3].text(0.5,0.9,'Mean: ' + str(round(np.mean(devs),4)),transform=ax[3].transAxes)
         ax[3].text(0.5,0.8,'STD: ' + str(round(np.std(devs),4)),transform=ax[3].transAxes)
+        ax[3].text(0.5,0.7,'Paths: ' + str(len(devs)),transform=ax[3].transAxes)
 
 
         fig.tight_layout()
@@ -327,6 +346,10 @@ if run_calibration == True:
         with open(calib_save_folder + "all_constants_"+str(len(card_id_all))+"LEDs_refSlot" + str(ref_mpmt_slot) + '_' + data_date + ".dict", 'wb') as fi:
             pickle.dump(mpmt_slots, fi)
             
+        with open(calib_save_folder + "devs_by_path_"+str(len(card_id_all))+"LEDs_refSlot" + str(ref_mpmt_slot) + '_' + data_date + ".dict", 'wb') as fi:
+            pickle.dump(dev_by_path, fi)
+            
+            
         # Now save the dictionary that can be sent to the calibration database
         # Timing constants should be subtracted from raw arrival times (since here we have constant = -mPMT clock offset + PMT delay)
         
@@ -336,7 +359,7 @@ if run_calibration == True:
     
             for pmt in mpmt_slots[slot]['pmts']:
                 try:
-                    single_constants.append({'channel_id': int(slot)*100+int(pmt), 'timing_offset': -mpmt_slots[slot]['clock offset'] + mpmt_slots[slot]['pmts'][pmt]}) 
+                    single_constants.append({'position_id': int(slot)*100+int(pmt), 'timing_offset': -mpmt_slots[slot]['clock offset'] + mpmt_slots[slot]['pmts'][pmt]}) 
                     
                 except:
                     pass
@@ -433,8 +456,6 @@ if answer3 == 'yes':
             
                 np.save(precal_save_folder+'card' + str(card_id_all[i])+'_'+str(start_run_num),precal_data[i])
                 print('Saving file ' + precal_save_folder+'card' + str(card_id_all[i])+'_'+str(start_run_num) + '.npy')
-            
-            
     
             
         
@@ -458,6 +479,11 @@ if answer3 == 'yes':
                 existing_file = np.load(fname)
                 if len(existing_file) > len(precal_data[i]):
                     continue
+                    
+            else:
+            
+                np.save(precal_save_folder+'card' + str(card_id_all[i])+'_'+str(start_run_num),precal_data[i])
+                print('Saving file ' + precal_save_folder+'card' + str(card_id_all[i])+'_'+str(start_run_num) + '.npy')
                     
             else:
             
