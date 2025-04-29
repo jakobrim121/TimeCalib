@@ -74,7 +74,7 @@ def get_precal_data(data, skip_paths = [[999,999,999,999]]):
         led_no = 3
     led_pos = led_mapping[str(data[0]['card_id'])]['led'+str(led_no)+'_pos_id']
     
-    print('mPMT slot that is firing: ' + str(mpmt_tran_slot) + ', with LED position: ' + str(led_pos))
+    print('mPMT slot that is firing: ' + str(mpmt_tran_slot) + ', with LED position: ' + str(led_pos) + ', flashes: ' + str(len(data)))
     
     '''
     # Set up the data_by_slot dictionary on an mPMT-by-mPMT basis
@@ -148,6 +148,9 @@ def get_precal_data(data, skip_paths = [[999,999,999,999]]):
  
     precal_data = []
     
+    
+        #print(data_by_slot['mpmt_rec2']['pmt_id8']['pmt_times'])
+    
     # Cycle through each mPMT slot ID, extract the gaussian fit to the timing distribution
     # for PMTs that are not dead and do not have and ADC issue
     for mpmt_receiving in data_by_slot:
@@ -185,7 +188,10 @@ def get_precal_data(data, skip_paths = [[999,999,999,999]]):
                 dt = t*8. # convert to ns
                         
                 # Get the total number of flashes    
-                n_flashes = len(data_by_slot[mpmt_receiving][pmt_id]['pmt_times'])
+                #n_flashes = len(data_by_slot[mpmt_receiving][pmt_id]['pmt_times'])
+                n_flashes = len(data)
+                
+                
                
                 
                 fine_bin_width = 0.05
@@ -195,6 +201,9 @@ def get_precal_data(data, skip_paths = [[999,999,999,999]]):
                 
                 
                 sig_per_flash = n_gauss/n_flashes
+                
+               # if mpmt_rec_slot == 52 and mpmt_tran_slot == 23:
+                #    print('PMT ' + str(pmt_pos) + ', nflashes = ' + str(n_flashes) + ', sig per flash = ' + str(sig_per_flash))
                 
                 # Only include events that get enough light (but are not completely flooded with light)
                 if sig_per_flash <0.04 or sig_per_flash > 0.8:
@@ -662,13 +671,3 @@ def get_cfd(times, adcs):
         amp = -999
 
     return t, amp, baseline
-
-
-def exponnorm_func2(t, t0, amp, tau, baseline):
-    sigma = 0.96
-    scale = sigma
-    y0 = (t - t0) / scale
-    y1 = (t - t0 + 1) / scale
-    k = tau / sigma
-    return 2048 + baseline - amp * 100 * (stats.exponnorm.cdf(y1, k, loc=0, scale=scale) -
-                                          stats.exponnorm.cdf(y0, k, loc=0, scale=scale))
